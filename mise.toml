@@ -1,0 +1,19 @@
+[tools]
+python = "3.14.10"
+node = "26.3.1"
+
+[tasks.setup]
+description = "Install Node dependencies and the Playwright Chromium browser"
+run = [
+  "pnpm install --frozen-lockfile",
+  "pnpm exec playwright install chromium",
+]
+
+[tasks.update-page]
+description = "Download the live page and regenerate the selected HTML table"
+run = "python extract_selected_events.py"
+
+[tasks.generate-image]
+description = "Update the HTML table and render it as a PNG"
+depends = ["update-page"]
+run = "node export_table_png.js"
