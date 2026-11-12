@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""Extract the requested ACT and NSW parkrun events into a minimal HTML table."""
+"""Extract configured parkrun events into a minimal HTML table."""
 
 from __future__ import annotations
 
 import argparse
 import sys
+import tomllib
 import urllib.error
 import urllib.request
 from html import escape
@@ -14,16 +15,6 @@ from pathlib import Path
 
 HEADINGS = ("Event", "Region", "Christmas Day", "New Year's Day")
 LIVE_URL = "https://www.parkrun.com.au/special-events/"
-TARGET_NSW_EVENTS = {
-    "Braidwood Showground parkrun",
-    "Bungendore Common parkrun",
-    "Goulburn parkrun",
-    "Jerrabomberra Mountain Reserve parkrun",
-    "Jindabyne parkrun",
-    "Nijong Oval parkrun",
-    "Queanbeyan parkrun",
-    "Riverbank parkrun",
-}
 
 
 class ResultsTableParser(HTMLParser):
@@ -124,15 +115,38 @@ def download_live_page(url: str, cache: Path) -> Path:
     return cache
 
 
-def select_events(events: list[dict[str, str]]) -> list[dict[str, str]]:
+def read_selection(source: Path) -> tuple[set[str], dict[str, set[str]]]:
+    config = tomllib.loads(source.read_text(encoding="utf-8"))
+    regions = config.get("regions", [])
+    extra_event_groups = config.get("extra_events", {})
+
+    if not isinstance(regions, list) or not all(isinstance(region, str) for region in regions):
+        raise ValueError(f"{source} must define regions as a list of strings")
+    if not isinstance(extra_event_groups, dict):
+        raise ValueError(f"{source} must define extra_events as region tables")
+
+    extra_events: dict[str, set[str]] = {}
+    for region, group in extra_event_groups.items():
+        if not isinstance(region, str) or not isinstance(group, dict):
+            raise ValueError(f"{source} has an invalid extra_events group")
+        events = group.get("events", [])
+        if not isinstance(events, list) or not all(isinstance(event, str) for event in events):
+            raise ValueError(f'{source} extra_events.{region!r} must define events as a list of strings')
+        extra_events[region] = set(events)
+
+    return set(regions), extra_events
+
+
+def select_events(
+    events: list[dict[str, str]],
+    regions: set[str],
+    extra_events: dict[str, set[str]],
+) -> list[dict[str, str]]:
     selected = [
         event
         for event in events
-        if event["Region"] == "Australian Capital Territory"
-        or (
-            event["Region"] == "New South Wales"
-            and event["Event"] in TARGET_NSW_EVENTS
-        )
+        if event["Region"] in regions
+        or event["Event"] in extra_events.get(event["Region"], set())
     ]
     return sorted(selected, key=lambda event: event["Event"].casefold())
 
@@ -213,6 +227,12 @@ def main() -> None:
     workspace = Path(__file__).resolve().parent
     argument_parser = argparse.ArgumentParser(description=__doc__)
     argument_parser.add_argument(
+        "--selection",
+        type=Path,
+        default=workspace / "selection.toml",
+        help="TOML file defining included regions and extra events",
+    )
+    argument_parser.add_argument(
         "--url",
         default=LIVE_URL,
         help="Live page to download before parsing",
@@ -236,6 +256,7 @@ def main() -> None:
         help="HTML file to create",
     )
     args = argument_parser.parse_args()
+    regions, extra_events = read_selection(args.selection)
 
     try:
         source = download_live_page(args.url, args.cache)
@@ -250,7 +271,7 @@ def main() -> None:
         events = read_events(args.input)
         source = args.input
 
-    selected = select_events(events)
+    selected = select_events(events, regions, extra_events)
     args.output.write_text(render_html(selected), encoding="utf-8")
     print(f"Wrote {args.output} with {len(selected)} event rows using {source}")
 

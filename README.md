@@ -2,12 +2,57 @@
 
 This project extracts selected events from the [parkrun Australia special events page](https://www.parkrun.com.au/special-events/), creates a compact HTML table, and can export that table as a PNG.
 
-The selected table includes:
+The current selection includes:
 
 - Every event in the Australian Capital Territory.
 - The requested New South Wales events: Braidwood Showground, Bungendore Common, Goulburn, Jerrabomberra Mountain Reserve, Jindabyne, Nijong Oval, Queanbeyan, and Riverbank.
 
-The output is sorted alphabetically by event name.
+The selection is configured in [`selection.toml`](selection.toml), so other users can change it without editing the Python script. The output is sorted alphabetically by event name.
+
+## Configure the selection
+
+Add a region to `regions` to include every event in that region:
+
+```toml
+regions = ["Australian Capital Territory", "Victoria"]
+```
+
+Add selected events from another region under `extra_events`:
+
+```toml
+[extra_events."New South Wales"]
+events = [
+  "Riverbank parkrun",
+  "Goulburn parkrun",
+]
+```
+
+Event names must match the source table exactly. You can omit `regions` or leave it empty when you only want selected events:
+
+```toml
+regions = []
+
+[extra_events."New South Wales"]
+events = ["Riverbank parkrun", "Goulburn parkrun"]
+```
+
+You can select events from multiple regions in the same file:
+
+```toml
+regions = []
+
+[extra_events."New South Wales"]
+events = ["Riverbank parkrun"]
+
+[extra_events."Victoria"]
+events = ["Albert parkrun, Melbourne", "Aintree Reserve parkrun"]
+```
+
+To use a different configuration file:
+
+```bash
+python extract_selected_events.py --selection another-selection.toml
+```
 
 ## Requirements
 

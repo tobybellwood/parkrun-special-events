@@ -1,0 +1,15 @@
+# Regions include every event in the region.
+regions = ["Australian Capital Territory"]
+
+# Extras add named events from other regions.
+[extra_events."New South Wales"]
+events = [
+  "Braidwood Showground parkrun",
+  "Bungendore Common parkrun",
+  "Goulburn parkrun",
+  "Jerrabomberra Mountain Reserve parkrun",
+  "Jindabyne parkrun",
+  "Nijong Oval parkrun",
+  "Queanbeyan parkrun",
+  "Riverbank parkrun",
+]
